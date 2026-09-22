@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/main.css">
+    <title>Ford-Fulkerson Interactive</title>
+</head>
+<body>
+    <header class="page-header">
+        <div class="title">Ford-Fulkerson Interactive</div>
+        <div class="author"><i>GRUPO 1: ROMEL LOPEZ - JOSÉ CALDERÓN - RAY PANTA - ARIANA NAVARRO</i></div>
+    </header>
+
+    <section class="toolbar toolbar-config" aria-label="Configuración del grafo">
+        <label class="field-label">
+            Nodos (7–16):
+            <input type="number" min="7" max="16" value="8" id="nodeCount">
+        </label>
+        <button id="newGraphBtn" onclick="initRandomGraph()">🎲 Generar aleatorio</button>
+        <button id="newManualBtn" onclick="initManualGraph()">✏ Modo manual</button>
+        <button onclick="mygraph.reset()">Limpiar grafo</button>
+        <button id="clearAlg" onclick="mygraph.clearAlg()" disabled>Reiniciar algoritmo</button>
+
+        <label class="field-label">
+            Capacidad máx.:
+            <input type="number" min="1" max="1000000" value="100" id="maxCap">
+        </label>
+
+        <label class="field-label">
+            Algoritmo:
+            <select id="algorithm">
+                <option value="edmondsKarp">Edmonds–Karp</option>
+                <option value="capacityScaling">Capacity Scaling</option>
+            </select>
+        </label>
+    </section>
+
+    <section class="toolbar toolbar-ff" aria-label="Controles del algoritmo">
+        <button id="playButton" onclick="play()">▶ Iniciar Ford-Fulkerson</button>
+        <button id="stepButton" onclick="stepForward()" disabled>⏭ Siguiente paso</button>
+        <button id="autoButton" onclick="toggleAuto()" disabled>⚡ Automático</button>
+
+        <span class="speed-group">
+            Velocidad:
+            <button onclick="speedUp()" aria-label="Aumentar velocidad">+</button>
+            <input type="text" size="1" value="5" id="speed" disabled aria-label="Nivel de velocidad">
+            <button onclick="slowDown()" aria-label="Disminuir velocidad">−</button>
+        </span>
+    </section>
+
+    <section class="toolbar toolbar-super" aria-label="Herramientas del grafo">
+        <button onclick="createSuperSource()">＋ Origen ficticio</button>
+        <button onclick="createSuperSink()">＋ Destino ficticio</button>
+        <button onclick="validateGraph()">✔ Validar grafo</button>
+        <button id="saveB" onclick="save()">💾 Guardar</button>
+        <button id="restoreB" onclick="restore()" disabled>↺ Restaurar</button>
+        <span id="graphMode" class="status-text">Sin grafo configurado</span>
+    </section>
+
+    <main class="workspace">
+        <section class="network-area">
+            <div class="network-labels">
+                <div>Red de flujo</div>
+            </div>
+
+            <div id="contentContainer">
+                <canvas id="canvas" width="950" height="520" aria-label="Red de flujo"></canvas>
+            </div>
+
+            <p class="canvas-help">
+                En modo manual: clic en un espacio vacío para crear nodos; arrastre de un nodo a otro para crear una arista; clic en un nodo o arista para editar.
+                El grafo debe permanecer sin ciclos. Durante el algoritmo, los corchetes indican `[nodo anterior⁺, flujo disponible]`; la fuente siempre muestra `[-,∞]`.
+            </p>
+
+            <div class="legend">
+                <span><span class="legend-dot source-dot"></span> Fuente</span>
+                <span><span class="legend-dot sink-dot"></span> Sumidero</span>
+                <span><span class="legend-line path-line"></span> Camino aumentante</span>
+                <span><span class="legend-line full-line"></span> Arista completa</span>
+                <span><span class="legend-line cut-line"></span> Corte mínimo</span>
+            </div>
+        </section>
+
+        <aside class="side-panel">
+            <div class="stats-box">
+                <div class="stat-item">
+                    <div class="stat-label">Flujo máximo</div>
+                    <input type="text" value="0" id="MaxFlowText" disabled>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Aumento</div>
+                    <input type="text" value="0" id="aug" disabled>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Caminos</div>
+                    <input type="text" value="0" id="path" disabled>
+                </div>
+            </div>
+
+            <div class="info-box info-status">
+                <h3>Estado actual</h3>
+                <div id="stepStatus" aria-live="polite">Generando grafo inicial...</div>
+            </div>
+
+            <div class="info-box info-path">
+                <h3>Camino actual</h3>
+                <div id="currentPathDisplay">—</div>
+            </div>
+
+            <div class="info-box info-history">
+                <h3>Caminos aumentantes</h3>
+                <div id="pathHistoryDisplay">Aún no se han utilizado caminos.</div>
+            </div>
+
+            <div class="info-box info-cut">
+                <h3>Corte mínimo</h3>
+                <div id="cutInfoDisplay">Disponible al finalizar el algoritmo.</div>
+            </div>
+        </aside>
+    </main>
+
+    <div id="vertexMenu" class="context-menu" role="menu">
+        <button class="button" id="vButton1" onclick="moveVertex()">✥ Mover</button>
+        <button class="button" id="vButton2" onclick="removeVertex()">🗑 Eliminar</button>
+        <button class="button" id="vButton3" onclick="chooseS()">◎ Fuente</button>
+        <button class="button" id="vButton4" onclick="chooseT()">◉ Sumidero</button>
+        <button class="button" id="vButton5" onclick="cancel()">✕ Cancelar</button>
+    </div>
+
+    <div id="edgeMenu" class="context-menu" role="menu">
+        <button class="button" id="eButton1" onclick="flip()">⇄ Invertir dirección</button>
+        <button class="button" id="eButton2" onclick="setCapacity()"># Cambiar capacidad</button>
+        <button class="button" id="eButton3" onclick="removeEdge()">🗑 Eliminar</button>
+        <button class="button" id="eButton4" onclick="cancel()">✕ Cancelar</button>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="js/main.js"></script>
+</body>
+</html>
