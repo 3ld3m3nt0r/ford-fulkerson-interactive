@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/main.css">
+    <title>Ford-Fulkerson Interactive • Master Suite</title>
+</head>
+<body>
+    <!-- Modal de Bienvenida (Onboarding) -->
+    <div id="welcomeBackdrop" class="welcome-backdrop" onclick="closeWelcomeModal()"></div>
+    <div id="welcomeModal" class="welcome-card" role="dialog" aria-modal="true">
+        <div class="welcome-header">
+            <span class="welcome-pill">Visualizador Interactivo Avanzado</span>
+            <h2>Ford-Fulkerson Master Suite</h2>
+            <p class="welcome-subtitle">Optimización de redes de flujo máximo, red residual y corte mínimo</p>
+        </div>
+        <div class="welcome-body">
+            <div class="welcome-steps">
+                <div class="step-card">
+                    <div class="step-icon">🎲</div>
+                    <h4>1. Modela tu Red</h4>
+                    <p>Genera grafos aleatorios, carga presets clásicos (Patológico, Bipartito) o diseña manualmente sin ciclos.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-icon">⚔</div>
+                    <h4>2. Analiza y Compara</h4>
+                    <p>Alterna entre la red de capacidades y la <strong>Red Residual (G<sub>f</sub>)</strong>, o corre el <strong>Modo Batalla</strong>.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-icon">✨</div>
+                    <h4>3. Visualización Dinámica</h4>
+                    <p>Observa partículas de flujo en movimiento, resplandor en caminos aumentantes y partición geométrica de los conjuntos <strong>S</strong> y <strong>T</strong>.</p>
+                </div>
+            </div>
+            <div class="welcome-shortcuts">
+                <strong>💡 Atajos y Funciones:</strong>
+                <span>• Clic en nodos o aristas para edición contextual. • Rueda del ratón sobre el lienzo para zoom de nodos. • Tecla <code>Esc</code> para cancelar o cerrar paneles.</span>
+            </div>
+        </div>
+        <div class="welcome-footer">
+            <label class="welcome-checkbox">
+                <input type="checkbox" id="welcomeDontShow"> No volver a mostrar al iniciar
+            </label>
+            <button class="welcome-start-btn" onclick="startAppFromModal()">¡Comenzar! →</button>
+        </div>
+    </div>
+
+    <!-- Modal de Comparativa / Batalla de Algoritmos -->
+    <div id="benchmarkBackdrop" class="benchmark-backdrop" onclick="closeBenchmarkModal()"></div>
+    <div id="benchmarkModal" class="benchmark-card" role="dialog" aria-modal="true">
+        <div class="benchmark-header">
+            <span class="welcome-pill" style="background:#fee2e2; color:#b91c1c;">Benchmark de Rendimiento</span>
+            <h2>⚔ Edmonds–Karp vs. Capacity Scaling</h2>
+            <p class="welcome-subtitle">Evaluación comparativa exacta sobre la estructura actual del grafo</p>
+        </div>
+        <div id="benchmarkResults" class="benchmark-content"></div>
+        <div class="benchmark-footer">
+            <button class="btn" onclick="closeBenchmarkModal()">Cerrar reporte</button>
+        </div>
+    </div>
+
+    <!-- Cabecera Principal -->
+    <header class="page-header">
+        <div class="title">
+            <span class="title-icon">⚡</span>
+            <span>Ford-Fulkerson Master Suite</span>
+            <span class="version-tag">PRO</span>
+        </div>
+        <div class="header-right">
+            <div class="team-container">
+                <span class="team-label">GRUPO 1</span>
+                <span class="member-chip">Romel Lopez</span>
+                <span class="member-chip">José Calderón</span>
+                <span class="member-chip">Ray Panta</span>
+                <span class="member-chip">Ariana Navarro</span>
+            </div>
+            <div class="header-actions">
+                <button id="themeToggleBtn" class="header-action-btn" onclick="toggleTheme()" title="Cambiar tema claro/oscuro">🌓</button>
+                <button id="audioToggleBtn" class="header-action-btn" onclick="toggleAudio()" title="Activar/desactivar efectos de audio">🔊</button>
+                <button class="header-guide-btn" onclick="openWelcomeModal()">📖 Guía</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Barra de Configuración y Presets -->
+    <section class="toolbar toolbar-config" aria-label="Configuración">
+        <label class="field-label">
+            Nodos:
+            <input type="number" min="7" max="16" value="8" id="nodeCount">
+        </label>
+        <button id="newGraphBtn" onclick="initRandomGraph()">🎲 Aleatorio</button>
+        <button id="newManualBtn" onclick="initManualGraph()">✏ Modo Manual</button>
+        
+        <label class="field-label">
+            Presets:
+            <select id="presetSelect" onchange="loadPreset(this.value)">
+                <option value="">Seleccionar preset...</option>
+                <option value="pathological">Caso Patológico (DFS vs EK)</option>
+                <option value="bipartite">Emparejamiento Bipartito</option>
+                <option value="bottleneck">Cuello de Botella Crítico</option>
+            </select>
+        </label>
+
+        <label class="field-label">
+            Cap. Máx:
+            <input type="number" min="1" max="1000000" value="100" id="maxCap">
+        </label>
+
+        <label class="field-label">
+            Algoritmo:
+            <select id="algorithm">
+                <option value="edmondsKarp">Edmonds–Karp (BFS)</option>
+                <option value="capacityScaling">Capacity Scaling (Δ)</option>
+            </select>
+        </label>
+
+        <button onclick="mygraph.reset()">Limpiar</button>
+        <button id="clearAlg" onclick="mygraph.clearAlg()" disabled>Reiniciar Algoritmo</button>
+    </section>
+
+    <!-- Barra de Ejecución y Vistas -->
+    <section class="toolbar toolbar-ff" aria-label="Ejecución">
+        <button id="playButton" onclick="play()">▶ Iniciar</button>
+        <button id="stepButton" onclick="stepForward()" disabled>⏭ Paso</button>
+        <button id="autoButton" onclick="toggleAuto()" disabled>⚡ Auto</button>
+
+        <span class="speed-group">
+            Vel:
+            <button onclick="speedUp()">+</button>
+            <input type="text" size="1" value="5" id="speed" disabled>
+            <button onclick="slowDown()">−</button>
+        </span>
+
+        <!-- Selector de Vista Segmentado -->
+        <span class="view-switch-group" role="group" aria-label="Selector de vista">
+            <span class="view-switch-label">Vista:</span>
+            <button id="viewFlowBtn" class="view-btn active-view" onclick="setViewMode('flow')">Red de Flujo</button>
+            <button id="viewResidualBtn" class="view-btn" onclick="setViewMode('residual')">Red Residual (G<sub>f</sub>)</button>
+        </span>
+        
+        <button class="btn-battle" onclick="runBenchmark()">⚔ Batalla de Algoritmos</button>
+    </section>
+
+    <!-- Barra de Herramientas, Exportación y Ficticios -->
+    <section class="toolbar toolbar-super" aria-label="Herramientas">
+        <button onclick="createSuperSource()">＋ Origen ficticio</button>
+        <button onclick="createSuperSink()">＋ Destino ficticio</button>
+        <button onclick="validateGraph()">✔ Validar</button>
+        <button id="saveB" onclick="save()">💾 Guardar</button>
+        <button id="restoreB" onclick="restore()" disabled>↺ Restaurar</button>
+        
+        <div class="export-group">
+            <button onclick="exportPNG()" title="Descargar lienzo como imagen PNG">📸 PNG</button>
+            <button onclick="exportJSON()" title="Exportar grafo a archivo JSON">📥 JSON</button>
+            <button onclick="document.getElementById('jsonFileInput').click()" title="Cargar grafo desde archivo JSON">📂 Importar</button>
+            <input type="file" id="jsonFileInput" accept=".json" style="display:none;" onchange="importJSON(event)">
+        </div>
+
+        <span id="graphMode" class="status-text">Sin grafo configurado</span>
+    </section>
+
+    <!-- Espacio Principal de Trabajo -->
+    <main class="workspace">
+        <section class="network-area">
+            <div class="network-labels">
+                <div id="viewLabelTitle">Red de Flujo Principal</div>
+            </div>
+
+            <div id="contentContainer">
+                <canvas id="canvas" width="950" height="520" aria-label="Red de flujo interactiva"></canvas>
+            </div>
+
+            <p class="canvas-help">
+                Modo manual: clic en espacio vacío para crear nodos; arrastra entre nodos para aristas con capacidad. En la Red Residual (G<sub>f</sub>), las flechas indican capacidad no usada y flujo cancelable.
+            </p>
+
+            <div class="legend">
+                <span><span class="legend-dot source-dot"></span> Fuente (S)</span>
+                <span><span class="legend-dot sink-dot"></span> Sumidero (T)</span>
+                <span><span class="legend-line path-line"></span> Camino Aumentante</span>
+                <span><span class="legend-line full-line"></span> Saturada (f = c)</span>
+                <span><span class="legend-line cut-line"></span> Corte Mínimo</span>
+                <span><span class="legend-pill part-s"></span> Partición S</span>
+                <span><span class="legend-pill part-t"></span> Partición T</span>
+            </div>
+        </section>
+
+        <!-- Panel Lateral Estadístico -->
+        <aside class="side-panel">
+            <div class="stats-box">
+                <div class="stat-item stat-maxflow">
+                    <div class="stat-label">Flujo Máximo</div>
+                    <input type="text" value="0" id="MaxFlowText" disabled>
+                </div>
+                <div class="stat-item stat-bottleneck">
+                    <div class="stat-label">Aumento (Cuello)</div>
+                    <input type="text" value="0" id="aug" disabled>
+                </div>
+                <div class="stat-item stat-paths">
+                    <div class="stat-label">Caminos Usados</div>
+                    <input type="text" value="0" id="path" disabled>
+                </div>
+            </div>
+
+            <div class="info-box info-status">
+                <h3><span class="box-icon">📌</span> Estado Actual</h3>
+                <div id="stepStatus" aria-live="polite">Generando grafo inicial...</div>
+            </div>
+
+            <div class="info-box info-path">
+                <h3><span class="box-icon">🚀</span> Camino Aumentante Actual</h3>
+                <div id="currentPathDisplay">—</div>
+            </div>
+
+            <div class="info-box info-history">
+                <h3><span class="box-icon">📜</span> Historial de Aumentos</h3>
+                <div id="pathHistoryDisplay">Aún no se han utilizado caminos.</div>
+            </div>
+
+            <div class="info-box info-cut">
+                <h3><span class="box-icon">✂</span> Corte Mínimo (S | T)</h3>
+                <div id="cutInfoDisplay">Disponible al finalizar el algoritmo.</div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Menús Contextuales -->
+    <div id="vertexMenu" class="context-menu" role="menu">
+        <button class="button" onclick="moveVertex()">✥ Mover</button>
+        <button class="button" onclick="removeVertex()">🗑 Eliminar</button>
+        <button class="button" onclick="chooseS()">◎ Definir como Fuente</button>
+        <button class="button" onclick="chooseT()">◉ Definir como Sumidero</button>
+        <button class="button" onclick="cancel()">✕ Cancelar</button>
+    </div>
+
+    <div id="edgeMenu" class="context-menu" role="menu">
+        <button class="button" onclick="flip()">⇄ Invertir Dirección</button>
+        <button class="button" onclick="setCapacity()"># Modificar Capacidad</button>
+        <button class="button" onclick="removeEdge()">🗑 Eliminar Arista</button>
+        <button class="button" onclick="cancel()">✕ Cancelar</button>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="js/main.js"></script>
+</body>
+</html>
